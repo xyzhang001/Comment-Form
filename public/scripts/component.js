@@ -1,5 +1,6 @@
 //CommentBox component
 var CommentBox = React.createClass({
+    //AJAX get request to fetch data from the server
     loadCommentsFromServer: function(){
         $.ajax({
             url: this.props.url,
@@ -13,10 +14,31 @@ var CommentBox = React.createClass({
             }.bind(this)
         });
     },
+    // submit to the server and refresh the list
+    handleCommentSubmit: function(comment){
+        var comments = this.state.data;
+        comment.id = Date.now();
+        var newComments = comments.concat([comment]);
+        this.setState({data: newComments});
+        $.ajax({
+            url: this.props.url,
+            dataType: 'json',
+            type: 'POST',
+            data: comment,
+            success: function(data){
+                this.setState({data: data});
+            }.bind(this),
+            error: function(xhr, status, err){
+                console.error(this.props.url, status, err.toString());
+            }.bind(this)
+        })
+    },
+    //to return the initial data nodes
     getInitialState: function(){
         return {data: []};
     },
-    componentDidMount: function(){
+    //to mount JSON data to the commentBox that received from the server
+    componentDidMount: function(){     
         this.loadCommentsFromServer();
         setInterval(this.loadCommentsFromServer,
         this.props.pollInterval);
@@ -25,8 +47,8 @@ var CommentBox = React.createClass({
         return(
             <div className="commentBox">
                     <h1>Comments</h1>
-                    <CommentList data={this.state.data}/> //receive data
-                    <CommentForm />
+                    <CommentList data={this.state.data}/> // to receive the data from commentBox
+                    <CommentForm onCommentSubmit={this.handleCommentSubmit} />
             </div>
         );
     }
@@ -50,10 +72,26 @@ var CommentList = React.createClass({
     }
 });
 var CommentForm = React.createClass({
+    handleSubmit: function(e){
+        e.preventDefault();
+        var author = this.refs.author.value.trim();
+        var text = this.refs.text.value.trim();
+        if (!text || !author){
+            return;
+        }
+        // send request to the server
+        this.props.onCommentSubmit({author: author, text: text});
+        this.refs.author.value = '';
+        this.refs.text.value = '';
+        return;
+    },
     render: function(){
         return (
-            <div className="commentForm">
-            </div>
+        <form className="commentForm" onSubmit={this.handleSubmit}> // created inputs to take in user input
+            <input type="text" placeholder="Your name" ref="author" />
+            <input type="text" placeholder="Write your comment here" ref="text" />
+            <input type="submit" value="Post" />
+        </form>
         );
     }
 });
@@ -71,9 +109,9 @@ var Comment = React.createClass({
         return(
             <div className="comment">
                 <h2 className="commentAuthor">
-                    {this.props.author} //receive author's content from CommentList
+                    {this.props.author} // to receive author's content from CommentList
                 </h2>
-                {this.props.children} // receive other nested content from CommentList
+                {this.props.children} // to receive other nested content from CommentList
                 <span dangerouslySetInnerHTML={this.rawMarkup()} />
             </div>
         );
